@@ -9,25 +9,28 @@
 - **담당 역할**: 프로그래머 팀장
 - **플랫폼**: PC
 ### 협업 도구
-- **프로젝트 관리**: Jira
-- **문서화**: Notion - [Notion 링크]
+- **프로젝트 관리**: Jira 링크?
+- **문서화**: Notion - Notion 링크
 - **버전 관리**: SVN
-
+### 데모 영상
 ## 🎯 담당 업무
 1. **VisionSystem (시야 시스템)** - 실시간 시야 추적 및 가시성 관리
 2. **ConvertSystem (무기 개조 시스템)** - 등급 기반 무기 강화 시스템
 3. **ModuleSystem (캐릭터 강화 시스템)** - 캐릭터 스탯 업그레이드 시스템
-4. **ShopSystem (상점 시스템)** - 아이템 거래 시스템
-5. **InventorySystem (인벤토리 시스템)** - 아이템 보관 및 관리
+4. **ShopSystem (상점 시스템)** - 아이템 구매 및 판매 시스템
+5. **InventorySystem (인벤토리 시스템)** - 아이템 보유 및 사용
 6. **Google Sheets 데이터 연동** - 외부 데이터 파이프라인 구축
-
+7. **그 외 기술**
 ## 💡 핵심 구현 내용
-### 1. VisionSystem (시야 시스템)     
-### 2. ConvertSystem (무기 개조 시스템)     
-### 3. ModuleSystem (캐릭터 강화 시스템)     
-### 4. ShopSystem (상점 시스템)    
-### 5. InventorySystem (인벤토리 시스템)
-### 6. Google Sheets 데이터 연동
+### 1. Post Processing과 Custom Material을 이용한 제한된 시야 시스템     
+#### 시야 움직이는 움짤(벽 차폐, 경계선에 걸친 캐릭터)              
+### 2. Custom MMC와 GameplayEffect를 이용한 개조 및 모듈 시스템      
+#### 개조 선택하는 움짤(적용결과 보여주기)                                
+### 3. 서버가 중앙 관리하는 상점 시스템           
+#### 상점에서 구매 및 판매 움짤              
+### 4. 네트워크 자동 동기화 되는 인벤토리 시스템         
+#### 아이템 사용 움짤               
+### 5. 기획자 친화적인 Google Sheets 데이터 연동    
 #### 데이터 파이프라인 구조
 ```
 Google Sheets (온라인 데이터 관리)
@@ -40,6 +43,8 @@ In-Memory Cache (TMap, TArray)
     ↓ Runtime 사용
 Gameplay Systems
 ```
+### 7. 그 외 기술      
+#### 그래픽반의 효율적인 작업을 위한 Persistant Level 제공.     
 ## 🔧 트러블슈팅
 ### 1. VisionSystem
 초기 기획은 원뿔 시야 범위 내 오브젝트만 보이는 단순한 요구사항으로, Overlap 이벤트 발생 시 SetVisibility() 함수 호출로 구현 예정이었습니다.     
@@ -48,10 +53,9 @@ Gameplay Systems
 기존의 Overlap 기반 SetVisibility(true/false) 방식은 Actor 단위로만 제어 가능했기 때문에, 부분 가시성 구현이 불가능했습니다.
 기술적 고민
 - Actor 단위 on/off가 아닌 픽셀 단위 가시성 제어가 필요
-- 매 프레임 수백 개의 LineTrace를 수행하면서도 성능 유지 필요
 - 장애물 차단 판정을 정확하게 처리하면서 자연스러운 시각적 전환 필요
   해결 방법 : **RenderTarget 기반 시야 맵 생성 + Material Function을 통한 GPU 가시성 판정**
 1. RenderTarget(1800x1800) 생성 후 매 프레임 레이캐스팅으로 시야 원뿔 형태를 흰색 삼각형으로 렌더링 (시야 내부 = 흰색, 외부 = 검은색)
 2. MPC(Material Parameter Collection) 를 통해 플레이어 위치(PlayerPosition)와 시야 범위(TraceRange)를 전역 파라미터로 공유
 3. 모든 캐릭터 머티리얼에 VisionTexture 파라미터로 RenderTarget 바인딩
-4. MF(Material Function) 에서 각 픽셀의 월드 위치를 RenderTarget UV로 변환하여 샘플링 후, 색상 값을 Opacity로 사용 (흰색 = 보임, 검은색 = 안 보임)
+4. MF(Material Function) 에서 각 픽셀의 월드 위치를 RenderTarget UV로 변환하여 샘플링 후, 결과 값을 Opacity Mask로 사용.

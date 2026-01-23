@@ -30,7 +30,7 @@
 #### 상점에서 구매 및 판매 움짤              
 ### 4. 네트워크 자동 동기화 되는 인벤토리 시스템         
 #### 아이템 사용 움짤               
-### 5. 기획자 친화적인 Google Sheets 데이터 연동    
+### 5. 기획자 친화적인 Google Sheets 데이터 연동 시스템        
 #### 데이터 파이프라인 구조
 ```
 Google Sheets (온라인 데이터 관리)
@@ -44,7 +44,8 @@ In-Memory Cache (TMap, TArray)
 Gameplay Systems
 ```
 ### 7. 그 외 기술      
-#### 그래픽반의 효율적인 작업을 위한 Persistant Level 제공.     
+#### 협업 효율성을 증가시키기 위한 Persistant Level 시스템.     
+#### 레벨 스트리밍과 LOD를 이용한 레벨 최적화.    
 ## 🔧 트러블슈팅
 ### 1. VisionSystem
 초기 기획은 원뿔 시야 범위 내 오브젝트만 보이는 단순한 요구사항으로, Overlap 이벤트 발생 시 SetVisibility() 함수 호출로 구현 예정이었습니다.     
@@ -58,4 +59,4 @@ Gameplay Systems
 1. RenderTarget(1800x1800) 생성 후 매 프레임 레이캐스팅으로 시야 원뿔 형태를 흰색 삼각형으로 렌더링 (시야 내부 = 흰색, 외부 = 검은색)
 2. MPC(Material Parameter Collection) 를 통해 플레이어 위치(PlayerPosition)와 시야 범위(TraceRange)를 전역 파라미터로 공유
 3. 모든 캐릭터 머티리얼에 VisionTexture 파라미터로 RenderTarget 바인딩
-4. MF(Material Function) 에서 각 픽셀의 월드 위치를 RenderTarget UV로 변환하여 샘플링 후, 결과 값을 Opacity Mask로 사용.
+4. MF(Material Function) 에서 각 픽셀의 월드 위치를 RenderTarget UV로 변환하여 샘플링 후, 결과 값을 Opacity Mask로 사용.     

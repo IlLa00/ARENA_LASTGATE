@@ -23,8 +23,7 @@ https://youtu.be/Np2qcAdtUEQ
 6. **Google Sheets 데이터 연동** - 외부 데이터 파이프라인 구축
 7. **그 외 기술**
 ## 💡 핵심 구현 내용
-### 1. Post Processing과 Custom Material을 이용한 제한된 시야 시스템         
-#### 시야 움직이는 움짤(벽 차폐, 경계선에 걸친 캐릭터)        
+### 1. Post Processing과 Custom Material을 이용한 제한된 시야 시스템                   
 ![bandicam 2026-02-12 10-13-45-501](https://github.com/user-attachments/assets/c24eda4e-cc58-41e1-8ab2-6a89d834fe8e)
 
 #### 개요    

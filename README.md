@@ -38,8 +38,14 @@ CPU기반 레이캐스팅과 GPU기반 RenderTarget을 혼합한 시야 시스�
 - **Dynamic Material Rendering** : 런타임에서 머티리얼 파라미터를 실시간으로 업데이트하여 시각적인 시야 범위를 표현합니다.
 - **PostProcess Integration** : 시야 상태에 따른 화면 효과(PostProcessVolume)를 연동하여 몰입감을 높였습니다.
 
-![bandicam 2026-02-12 12-08-56-396](https://github.com/user-attachments/assets/67bab719-1c0e-48b9-9b4d-952a8fe0018b)     
-![bandicam 2026-02-12 12-08-56-396 (1)](https://github.com/user-attachments/assets/83e9c266-8989-4310-986c-6302f0c3251b)      
+![bandicam 2026-02-12 12-08-56-396](https://github.com/user-attachments/assets/67bab719-1c0e-48b9-9b4d-952a8fe0018b)      
+> 연막탄 내 적군은 보이지 않습니다.
+     
+![bandicam 2026-02-12 12-08-56-396 (1)](https://github.com/user-attachments/assets/83e9c266-8989-4310-986c-6302f0c3251b)       
+> 섬광탄 피격 받을 시, 시야가 차단됩니다.
+
+![bandicam 2026-02-12 12-19-37-339](https://github.com/user-attachments/assets/53403a85-d421-4dd0-84a4-3161434ae99b)    
+> 타워 활성화 시, 특정 지역들의 시야를 확인 가능해 미니맵에도 보여집니다.
 
 #### 코드
 
@@ -62,6 +68,7 @@ CPU기반 레이캐스팅과 GPU기반 RenderTarget을 혼합한 시야 시스�
 ### 3. 서버가 중앙 관리하는 상점 시스템           
 ![bandicam 2026-02-12 11-34-20-944](https://github.com/user-attachments/assets/b607b85a-87f7-4cbc-8197-4d663e3b2f0e)
 ![bandicam 2026-02-12 11-34-34-577](https://github.com/user-attachments/assets/9b37ae33-e4ff-40c2-b672-2dea35530465)
+
 
 
 ### 개요

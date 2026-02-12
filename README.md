@@ -137,17 +137,21 @@ GAS (SetByCallerMagnitude → AttributeSet)
 #### 협업 효율성을 증가시키기 위한 Persistant Level 시스템.       
 <img width="529" height="246" alt="image" src="https://github.com/user-attachments/assets/31f12f81-0c6f-4c67-9580-8c539e019fef" />                 
 
-여러 팀원(레벨 디자인, 라이팅, 아트)이 충돌 없이 병렬로 작업할 수 있도록 퍼시스턴트 레벨 기반의 레벨 스트리밍 구조를 채택했습니다.     
+여러 팀원(레벨 디자인, 라이팅, 아트)이 SVN 충돌 없이 병렬로 작업할 수 있도록 퍼시스턴트 레벨 기반의 레벨 스트리밍 구조를 채택했습니다.     
 
 ## 🔧 트러블슈팅
-### 에셋 캐싱 및 호출 빈도 최적화를 통한 시야(Vision) 시스템 성능 최적화      
-<img width="645" height="125" alt="KakaoTalk_20260120_114140293" src="https://github.com/user-attachments/assets/f292b53b-4721-428a-9e79-88be6d142c36" />               
+### 에셋 캐싱 및 호출 빈도 최적화를 통한 시야(Vision) 시스템 성능 최적화  
+> Before
+<img width="645" height="125" alt="KakaoTalk_20260120_114140293" src="https://github.com/user-attachments/assets/f292b53b-4721-428a-9e79-88be6d142c36" />    
+
         
 시야 시스템(VisionComponent)을 구현하던 중, 다수의 액터를 대상으로 하는 연산이 매 프레임 반복되면서 CPU 점유율이 비정상적으로 높아지는 성능 병목 현상을 확인했습니다, 특히 언리얼 인사이트 프로파일링 결과, TickComponent 내에서 호출되는 GetAllActorsOfClass 함수가 **60FPS기준 초당 약 300회 이상** 반복 실행되며 프레임 드랍의 주원인이 되고 있음을 파악했습니다.      
 이를 해결하기 위해, 매 프레임 모든 액터를 새로 검색하는 대신 필요한 액터 배열을 멤버 변수에 담아두는 **에셋 캐싱 메커니즘**을 도입했습니다. 또한, 시야 업데이트가 매 프레임 이루어질 필요가 없다는 점에 착안하여 CacheRefreshInterval을 0.5초로 설정한 별도의 타이머 로직을 구축했습니다.    
 이를 통해 SetupVisionTextureForRemotePlayers, UpdateSmokeVisibility 등의 함수가 매 프레임이 아닌 캐싱된 데이터를 참조하여 동작하도록 구조를 개선했습니다.      
-
+> After
 <img width="649" height="78" alt="KakaoTalk_20260120_124115111" src="https://github.com/user-attachments/assets/17a77a71-fead-49ba-a221-f3d7e7115c8d" />         
+
+
 
 이러한 최적화 결과, 초당 약 300회에 달하던 무거운 함수 호출 횟수를 **초당 6회 수준으로 약 98% 감소**시켰으며, 전체적인 시야 시스템의 CPU 연산 비용을 획기적으로 낮추었습니다. 이를 통해 복잡한 연산일수록 실행 빈도 조절과 데이터 캐싱이 성능에 얼마나 결정적인 영향을 미치는지 다시 한번 체감했습니다.              
 
@@ -199,10 +203,17 @@ for (const FName& RowName : RowNames)
 </details>                  
 
 ### Lumen + Lightmass Volume 충돌로 인한 히칭(Hitching) 현상    
-인게임 중 멀티플레이 환경에서 서버와 클라이언트 모두 주기적으로 화면이 멈추는 히칭 현상을 발견했습니다.      
+인게임 중 멀티플레이 환경에서 서버와 클라이언트 모두 주기적으로 화면이 멈추는 히칭 현상을 발견했습니다.       
+> Before
+
 <img width="1916" height="925" alt="image" src="https://github.com/user-attachments/assets/4dab64b6-2e2e-407c-90f1-f0ae02561a8c" />
+
+
+
 이를 해결하기 위해 Unreal Insights를 활용하여 데이터 기반의 프로파일링을 수행한 결과, LumenSceneUpdate의 Card Capture가 프레임당 상한(300)에 도달하면서 히칭이 발생하고 있었습니다.     
 추가 분석 결과, 라이트매스 볼륨(Lightmass Volume)으로 라이트를 Bake한 상태에서 실시간 루멘 연산으로 라이팅을 중복 계산하면서 프레임 당 처리 한계를 초과하는 것을 알게 되었습니다.        
-이를 해결하기 위해 전역 조명 방식을 루멘에서 None(베이킹 라이트 활용)으로 전환하여 연산 부하를 제거함으로써 히칭을 완전히 사라지게 하였습니다.     
-<img width="1225" height="826" alt="image" src="https://github.com/user-attachments/assets/c9691d9a-6834-4238-a257-7247cc1038b5" />
+이를 해결하기 위해 전역 조명 방식을 루멘에서 None(베이킹 라이트 활용)으로 전환하여 연산 부하를 제거함으로써 히칭을 완전히 사라지게 하였습니다.       
+> After
 
+<img width="1225" height="826" alt="image" src="https://github.com/user-attachments/assets/c9691d9a-6834-4238-a257-7247cc1038b5" />
+  

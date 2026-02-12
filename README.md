@@ -13,6 +13,7 @@
 - **문서화**: Notion 
 - **버전 관리**: SVN
 ### 데모 영상
+https://youtu.be/Np2qcAdtUEQ
 ## 🎯 담당 업무
 1. **VisionSystem (시야 시스템)** - 실시간 시야 추적 및 가시성 관리
 2. **ConvertSystem (무기 개조 시스템)** - 등급 기반 무기 강화 시스템

@@ -1,0 +1,6 @@
+#include "ARENA_LASTGATE.h"
+#include "Modules/ModuleManager.h"
+
+DEFINE_LOG_CATEGORY(LogOZ);
+
+IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, ARENA_LASTGATE, "ARENA_LASTGATE" );

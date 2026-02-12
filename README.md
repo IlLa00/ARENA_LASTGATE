@@ -77,40 +77,37 @@ CPU기반 레이캐스팅과 GPU기반 RenderTarget을 혼합한 시야 시스�
 ### 개요
 슬롯 기반 아이템 관리 시스템으로, 네트워크 복제와 스택킹을 지원하며 기획의도인 4슬롯 + 3종류 배틀아이템 제한 규칙을 적용합니다.    
 
-### 기술적 특징
-| 특징 | 설명 |
-|------|------|
-| **네트워크 동기화** | `ReplicatedUsing = OnRep_ItemSlots` 자동 동기화 |
-| **슬롯 제한** | 최대 4슬롯, 배틀아이템 3종류 제한 |
-| **스택킹 지원** | 동일 아이템 중첩 가능, MaxStack 제한 |
-| **UI 헬퍼 함수** | ItemSubsystem 연동 데이터 조회 |     
+### 기술적 특징    
+**경량 슬롯 구조** : 아이템 객체 참조 대신 ID + Type + Quantity 경량 구조체로 설계했습니다, 아이템의 실제 데이터(이름, 아이콘, 설명 등)는 ItemSubsystem을 통해 필요 시점에 조회합니다. 이 구조 덕분에 네트워크 복제 비용이 최소화됩니다.     
+**네트워크 동기화** : `ReplicatedUsing = OnRep_ItemSlots`으로 서버에서 슬롯만 바꾸면 클라이언트 UI가 자동으로 동기화되는 구조입니다.          
+**스택 가능** : 먼저 스택을 탐색하여 동일한 아이템이 이미 있으면 해당 슬롯 수량만 증가 -> TSet 자료구조를 활용해 신규 배틀아이템이면 보유 종류가 3종미만인지 확인해 아이템 종류 제한을 검증 -> 빈 슬롯을 찾아 새 아이템을 배치하고 없으면 실패를 반환합니다.
 
-인벤토리는 실제 아이템 데이터 대신 ID만 저장하게 하여 메모리 효율성을 챙겼습니다.
-
+#### 코드
 
 ### 5. 기획자 친화적인 Google Sheets 데이터 연동 시스템        
 #### 데이터 파이프라인 구조
 ```
-Google Sheets (온라인 데이터 관리)
+Google Sheets (기획자 수치 관리)
     ↓ CSV Export
 CSV Files (Content/Data/*.csv)
     ↓ Unreal Import
 DataTable Assets (DT_*.uasset)
-    ↓ Subsystem 로드
-In-Memory Cache (TMap, TArray)
-    ↓ Runtime 사용
-Gameplay Systems
+    ↓ Subsystem Initialize
+In-Memory Cache
+  ├─ TArray (순회용)
+  ├─ TMap<ID, Data*> (O(1) 조회용)
+  ├─ TMap<ID, GameplayEffect> (GC 방지 + 중복 로드 방지)
+  └─ TMap<ID, Texture2D> (아이콘 캐시)
+    ↓ Runtime
+GAS (SetByCallerMagnitude → AttributeSet)
 ```
 #### 개요
 `UGameInstanceSubsystem`을 상속받아 게임 전역에서 접근 가능한 데이터 관리 레이어를 구현했습니다. DataTable 기반의 데이터 드리븐 설계로 기획자 친화적인 구조를 제공합니다.      
 
 ### 기술적 특징
-| 특징 | 설명 |
-|------|------|
-| **Config 기반 경로** | `DefaultEngine.ini`에서 DataTable 경로 설정 |
-| **Soft Reference** | `TSoftObjectPtr`로 지연 로딩 지원 |
-| **캐싱 시스템** | `TMap` 기반 O(1) 조회 성능 |
-| **GAS 통합** | SetByCallerMagnitude를 통한 동적 수치 적용 |
+**TSoftObjectPtr** : 에디터에서 경로만 저장, LoadSynchronous()로 필요 시점에 로드합니다.
+**캐싱 시스템** : `TMap` 기반 O(1) 조회 성능 + UPROPERTY를 붙여 GC가 캐싱된 에셋을 해제하지 못하도록 설정했습니다.
+**GAS 통합** : SetByCallerMagnitude를 통한 런타임에 결정되는 DataTable 수치를 적용했습니다. 
 
 ### 7. 그 외 기술      
 #### 협업 효율성을 증가시키기 위한 Persistant Level 시스템.       

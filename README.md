@@ -38,11 +38,14 @@ CPU기반 레이캐스팅과 GPU기반 RenderTarget을 혼합한 시야 시스�
 - **Dynamic Material Rendering** : 런타임에서 머티리얼 파라미터를 실시간으로 업데이트하여 시각적인 시야 범위를 표현합니다.
 - **PostProcess Integration** : 시야 상태에 따른 화면 효과(PostProcessVolume)를 연동하여 몰입감을 높였습니다.
 
+![bandicam 2026-02-12 12-08-56-396](https://github.com/user-attachments/assets/67bab719-1c0e-48b9-9b4d-952a8fe0018b)     
+![bandicam 2026-02-12 12-08-56-396 (1)](https://github.com/user-attachments/assets/83e9c266-8989-4310-986c-6302f0c3251b)      
+
 #### 코드
 
 ### 2. Custom MMC와 GameplayEffect를 이용한 개조 및 모듈 시스템      
-#### 개조 선택하는 움짤(적용결과 보여주기)       
-<img width="1410" height="731" alt="image" src="https://github.com/user-attachments/assets/602a1589-d020-492e-adc8-fb9ad57d757c" />          
+![bandicam 2026-02-12 11-27-35-314](https://github.com/user-attachments/assets/c8b0bb33-8b5f-4ff4-96e4-a4137e987f88)
+
 
 #### 개요     
 개조는 플레이어의 무기에 추가적인 능력치나 특수 효과를 부여하는 시스템입니다. **GAS(Gameplay Ability System)**의 GameplayEffect를 기반으로 설계되어 안정적인 스탯 변조를 지원하며, Data-Driven(데이터 주도) 설계를 통해 수십 가지의 무기 속성을 유연하게 제어합니다.     
@@ -57,8 +60,9 @@ CPU기반 레이캐스팅과 GPU기반 RenderTarget을 혼합한 시야 시스�
 #### 코드
 
 ### 3. 서버가 중앙 관리하는 상점 시스템           
-#### 상점에서 구매 및 판매 움짤                    
-<img width="1051" height="584" alt="image" src="https://github.com/user-attachments/assets/07f4503e-02e4-48f6-9f3a-e9a42528275c" />       
+![bandicam 2026-02-12 11-34-20-944](https://github.com/user-attachments/assets/b607b85a-87f7-4cbc-8197-4d663e3b2f0e)
+![bandicam 2026-02-12 11-34-34-577](https://github.com/user-attachments/assets/9b37ae33-e4ff-40c2-b672-2dea35530465)
+
 
 ### 개요
 실시간 멀티플레이어 환경에서 안전한 아이템 거래를 보장하는 서버 권한 기반의 상점 시스템입니다.     
@@ -70,8 +74,6 @@ CPU기반 레이캐스팅과 GPU기반 RenderTarget을 혼합한 시야 시스�
 ## ShopManager 코드
 
 ### 4. 네트워크 자동 동기화 되는 인벤토리 시스템           
-#### 아이템 사용 움짤                 
-<img width="644" height="367" alt="image" src="https://github.com/user-attachments/assets/62d3697d-b493-4b96-a302-bec42e2c09e4" />
 
 ### 개요
 슬롯 기반 아이템 관리 시스템으로, 네트워크 복제와 스택킹을 지원하며 기획의도인 4슬롯 + 3종류 배틀아이템 제한 규칙을 적용합니다.    
@@ -80,6 +82,7 @@ CPU기반 레이캐스팅과 GPU기반 RenderTarget을 혼합한 시야 시스�
 **경량 슬롯 구조** : 아이템 객체 참조 대신 ID + Type + Quantity 경량 구조체로 설계했습니다, 아이템의 실제 데이터(이름, 아이콘, 설명 등)는 ItemSubsystem을 통해 필요 시점에 조회합니다. 이 구조 덕분에 네트워크 복제 비용이 최소화됩니다.     
 **네트워크 동기화** : `ReplicatedUsing = OnRep_ItemSlots`으로 서버에서 슬롯만 바꾸면 클라이언트 UI가 자동으로 동기화되는 구조입니다.          
 **스택 가능** : 먼저 스택을 탐색하여 동일한 아이템이 이미 있으면 해당 슬롯 수량만 증가 -> TSet 자료구조를 활용해 신규 배틀아이템이면 보유 종류가 3종미만인지 확인해 아이템 종류 제한을 검증 -> 빈 슬롯을 찾아 새 아이템을 배치하고 없으면 실패를 반환합니다.
+
 
 #### 코드
 

@@ -49,6 +49,69 @@ CPU기반 레이캐스팅과 GPU기반 RenderTarget을 혼합한 시야 시스�
 
 <details>
 <summary><b>🔍 코드</b></summary>
+     
+```C++
+void UOZVisionComponent::LosVisionSystem()
+{
+    TRACE_CPUPROFILER_EVENT_SCOPE(UOZVisionComponent::LosVisionSystem);
+
+    if (!bIsVisionInitialized)
+    {
+        InitializeVisionSystem();
+        if (!bIsVisionInitialized)
+            return;
+    }
+
+    if (!DynamicRenderTarget)  { bIsVisionInitialized = false; return; }
+    if (!VisionMaterialInstance) { bIsVisionInitialized = false; return; }
+    if (!CachedPostProcessVolume) { bIsVisionInitialized = false; return; }
+
+    UKismetMaterialLibrary::SetVectorParameterValue(
+        GetOwner()->GetWorld(), PlayerCollection,
+        "PlayerPosition", FLinearColor(GetOwner()->GetActorLocation()));
+
+    SetupVisionTextureForRemotePlayers();
+
+    // 섬광탄에 맞은 경우: 원뿔을 그리지 않고 RenderTarget을 BLACK으로 클리어
+    if (bFlashbanged)
+    {
+        UKismetRenderingLibrary::ClearRenderTarget2D(
+            GetOwner()->GetWorld(), DynamicRenderTarget, FLinearColor::Black);
+
+        UpdateBushHiddenSet();
+
+        ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+        for (AOZPlayer* Player : CachedPlayers)
+        {
+            if (Player && Player != OwnerCharacter)
+            {
+                if (UOZWidgetComponent* WidgetComp = Player->StatusWidgetComp)
+                {
+                    if (UUserWidget* Widget = WidgetComp->GetUserWidgetObject())
+                        Widget->SetVisibility(ESlateVisibility::Hidden);
+                }
+                UpdateShieldEffectVisibility(Player, false);
+            }
+        }
+
+        PreviousDetectedPlayers.Empty();
+        PreviousTowerDetectedPlayers.Empty();
+
+        TSet<AOZPlayer*> EmptySet;
+        UpdateSmokeAndBushVisibility(EmptySet);
+        UpdateMinimapVisibility();
+        return;
+    }
+
+    CreateCone();
+    PrePareTriangles();
+
+    FOZVisionUtility::DrawToRenderTarget(
+        GetOwner()->GetWorld(), DynamicRenderTarget, CanvasTriangles, true);
+
+    DrawTowerVisionAreas();
+    UpdateMinimapVisibility();
+    }
 ```
 </details>
 
@@ -69,6 +132,43 @@ CPU기반 레이캐스팅과 GPU기반 RenderTarget을 혼합한 시야 시스�
 
 <details>
 <summary><b>🔍 코드</b></summary>
+     
+```C++
+UOZDamageMMC::UOZDamageMMC()
+{
+    BaseDamageDef = FGameplayEffectAttributeCaptureDefinition(
+        UOZWeaponAttributeSet::GetBaseDamageAttribute(),
+        EGameplayEffectAttributeCaptureSource::Source, false);
+
+    DamageMultiDef = FGameplayEffectAttributeCaptureDefinition(
+        UOZWeaponAttributeSet::GetDamageMultiAttribute(),
+        EGameplayEffectAttributeCaptureSource::Source, false);
+
+    DamageAmpMultiDef = FGameplayEffectAttributeCaptureDefinition(
+        UOZWeaponAttributeSet::GetDamageAmpMultiAttribute(),
+        EGameplayEffectAttributeCaptureSource::Source, false);
+
+    RelevantAttributesToCapture.Add(BaseDamageDef);
+    RelevantAttributesToCapture.Add(DamageMultiDef);
+    RelevantAttributesToCapture.Add(DamageAmpMultiDef);
+}
+
+float UOZDamageMMC::CalculateBaseMagnitude_Implementation(const FGameplayEffectSpec& Spec) const
+{
+    FAggregatorEvaluateParameters EvaluationParameters;
+
+    float BaseValue = 0.0f;
+    float MultiValue = 0.0f;
+    float AmpMultiValue = 0.0f;
+
+    GetCapturedAttributeMagnitude(BaseDamageDef, Spec, EvaluationParameters, BaseValue);
+    GetCapturedAttributeMagnitude(DamageMultiDef, Spec, EvaluationParameters, MultiValue);
+    GetCapturedAttributeMagnitude(DamageAmpMultiDef, Spec, EvaluationParameters, AmpMultiValue);
+
+    // 기획 수식: BaseDamage * (1 + DamageMulti) * (1 + DamageAmpMulti)
+    float Result = BaseValue * (1.0f + MultiValue) * (1.0f + AmpMultiValue);
+    return Result;
+}
 ```
 </details>
 
@@ -88,6 +188,70 @@ CPU기반 레이캐스팅과 GPU기반 RenderTarget을 혼합한 시야 시스�
 
 <details>
 <summary><b>🔍 코드</b></summary>
+
+```C++
+bool AOZShopManager::CanPurchaseItem(AOZPlayerState* BuyerPS, int32 ItemID, EOZItemType ItemType) const
+{
+    if (!BuyerPS) return false;
+
+    int32 Price = GetItemPrice(ItemID, ItemType);
+    if (Price <= 0) return false;
+
+    // 1단계: 재화 검증
+    if (BuyerPS->OwningScraps < Price) return false;
+
+    UOZInventoryComponent* InvComp = BuyerPS->InventoryComp;
+    if (!InvComp) return false;
+
+    // 2단계: 수량 상한 검증
+    int32 MaxStack = GetItemMaxStack(ItemID, ItemType);
+    int32 CurrentQuantity = InvComp->GetTotalItemQuantity(ItemID, ItemType);
+    if (CurrentQuantity >= MaxStack) return false;
+
+    // 3단계: 슬롯 가용성 검증
+    if (CurrentQuantity == 0 && !InvComp->HasEmptySlot()) return false;
+
+    // 4단계: 배틀아이템 3종류 제한
+    if (CurrentQuantity == 0 && ItemType == EOZItemType::Battle)
+    {
+        if (InvComp->GetUniqueBattleItemCount() >= 3) return false;
+    }
+
+    return true;
+}
+
+void AOZShopManager::Server_PurchaseItem_Implementation(
+    AOZPlayerState* BuyerPS, int32 ItemID, EOZItemType ItemType, int32 Quantity)
+{
+    if (!BuyerPS || Quantity <= 0) return;
+
+    UOZInventoryComponent* InvComp = BuyerPS->InventoryComp;
+    if (!InvComp) return;
+
+    int32 Price = GetItemPrice(ItemID, ItemType);
+    if (Price <= 0) return;
+
+    int32 MaxStack = GetItemMaxStack(ItemID, ItemType);
+    int32 CurrentQuantity = InvComp->GetTotalItemQuantity(ItemID, ItemType);
+    int32 MaxPurchasable = MaxStack - CurrentQuantity;
+
+    int32 ActualQuantity = FMath::Min(Quantity, MaxPurchasable);
+    if (ActualQuantity <= 0) return;
+
+    int32 TotalPrice = Price * ActualQuantity;
+    if (BuyerPS->OwningScraps < TotalPrice) return;
+
+    if (CurrentQuantity == 0 && !InvComp->HasEmptySlot()) return;
+
+    // 5단계: AddItem 성공 후에만 재화 차감
+    bool bAddSuccess = InvComp->AddItem(ItemID, ItemType, ActualQuantity);
+    if (!bAddSuccess) return;
+
+    BuyerPS->OwningScraps -= TotalPrice;
+
+    OnShopUpdated.Broadcast();
+    OnScrapChanged.Broadcast(-1 * TotalPrice);
+}
 ```
 </details>
 
@@ -105,6 +269,51 @@ CPU기반 레이캐스팅과 GPU기반 RenderTarget을 혼합한 시야 시스�
 
 <details>
 <summary><b>🔍 코드</b></summary>
+
+```
+void UOZInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+    DOREPLIFETIME(UOZInventoryComponent, ItemSlots);
+}
+
+void UOZInventoryComponent::OnRep_ItemSlots()
+{
+    OnInventoryUpdated.Broadcast();
+}
+
+bool UOZInventoryComponent::AddItem(int32 ItemID, EOZItemType ItemType, int32 Amount)
+{
+    // 1단계: 스택 탐색 — 동일 아이템이 있으면 수량만 증가
+    int32 ExistingSlot = FindSlotWithItem(ItemID, ItemType);
+    if (ExistingSlot != INDEX_NONE)
+    {
+        ItemSlots[ExistingSlot].Quantity += Amount;
+        OnRep_ItemSlots();
+        return true;
+    }
+
+    // 2단계: 종류 제한 검증 — 배틀아이템 3종 미만인지 확인
+    if (ItemType == EOZItemType::Battle)
+    {
+        int32 UniqueBattleItemCount = GetUniqueBattleItemCount();
+        if (UniqueBattleItemCount >= 3)
+            return false;
+    }
+
+    // 3단계: 빈 슬롯 배치
+    int32 EmptySlot = FindEmptySlot();
+    if (EmptySlot != INDEX_NONE)
+    {
+        ItemSlots[EmptySlot].ItemID = ItemID;
+        ItemSlots[EmptySlot].ItemType = ItemType;
+        ItemSlots[EmptySlot].Quantity = Amount;
+        OnRep_ItemSlots();
+        return true;
+    }
+
+    return false;
+}
 ```
 </details>
 

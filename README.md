@@ -1,20 +1,25 @@
 # ARENA LASTGATE 
 ## 📋 프로젝트 개요    
-본 프로젝트는 인하대학교 인공지능프로그래밍 게임개발 교육의 협력사 Kog의 리소스를 사용해 제작되었습니다.      
-**ARENA LASTGATE**는 언리얼 엔진 5.5 기반의 멀티플레이어 배틀 로얄 슈팅 게임입니다. 플레이어는 라운드마다 무기 개조, 캐릭터 강화, 상점 구매 등을 통해 전략적으로 성장하며, 최후의 1인이 되기 위해 경쟁합니다.
+본 프로젝트는 인하대학교 인공지능프로그래밍 게임개발 교육의 협력사 **Kog**의 리소스를 사용해 제작되었습니다.      
+**ARENA LASTGATE**는 언리얼 엔진 5.5 기반의 **멀티플레이** 배틀 로얄 슈팅 게임입니다.      
+플레이어는 라운드마다 무기 개조, 캐릭터 강화, 상점 구매 등을 통해 전략적으로 성장하며, 최후의 1인이 되기 위해 경쟁합니다.      
+
 ### 프로젝트 정보
 - **개발 엔진**: Unreal Engine 5.5
 - **개발 언어**: C++, Blueprint
-- **개발 기간**: 25.11 ~ 26.02
+- **개발 기간**: 3개월
 - **팀 구성**: 기획 5명, 프로그래머 4명, 그래픽 6명     
 - **담당 역할**: 프로그래머 팀장
 - **플랫폼**: PC
+
 ### 협업 도구
 - **프로젝트 관리**: Jira
 - **문서화**: Notion 
 - **버전 관리**: SVN
+
 ### 데모 영상
-https://youtu.be/Np2qcAdtUEQ
+https://youtu.be/Np2qcAdtUEQ      
+
 ## 🎯 담당 업무
 1. **VisionSystem (시야 시스템)** - 실시간 시야 추적 및 가시성 관리
 2. **Convert & Module System (개조 및 모듈 시스템)** - 캐릭터 스테이터스 및 무기 강화 시스템      
@@ -22,6 +27,7 @@ https://youtu.be/Np2qcAdtUEQ
 4. **InventorySystem (인벤토리 시스템)** - 아이템 보유 및 사용    
 5. **Google Sheets 데이터 연동** - 외부 데이터 파이프라인 구축     
 6. **그 외 기술**
+
 ## 💡 핵심 구현 내용
 ### 1. Post Processing과 Custom Material을 이용한 제한된 시야 시스템                   
 ![bandicam 2026-02-12 10-13-45-501](https://github.com/user-attachments/assets/c24eda4e-cc58-41e1-8ab2-6a89d834fe8e)
@@ -335,11 +341,12 @@ GAS (SetByCallerMagnitude → AttributeSet)
 ```
 #### 개요
 `UGameInstanceSubsystem`을 상속받아 게임 전역에서 접근 가능한 데이터 관리 레이어를 구현했습니다. DataTable 기반의 데이터 드리븐 설계로 기획자 친화적인 구조를 제공합니다.      
+<img width="1900" height="574" alt="image" src="https://github.com/user-attachments/assets/503707c0-3bed-413b-ba9d-d204c1dfa79b" />
 
 #### 기술적 특징
-**TSoftObjectPtr** : 에디터에서 경로만 저장, LoadSynchronous()로 필요 시점에 로드합니다.
-**캐싱 시스템** : `TMap` 기반 O(1) 조회 성능 + UPROPERTY를 붙여 GC가 캐싱된 에셋을 해제하지 못하도록 설정했습니다.
-**GAS 통합** : SetByCallerMagnitude를 통한 런타임에 결정되는 DataTable 수치를 적용했습니다. 
+- **TSoftObjectPtr** : 에디터에서 경로만 저장, LoadSynchronous()로 필요 시점에 로드합니다.          
+- **캐싱 시스템** : `TMap` 기반 O(1) 조회 성능 + UPROPERTY를 붙여 GC가 캐싱된 에셋을 해제하지 못하도록 설정했습니다.              
+- **GAS 통합** : SetByCallerMagnitude를 통한 런타임에 결정되는 DataTable 수치를 적용했습니다.            
 
 ### 7. 그 외 기술      
 #### 협업 효율성을 증가시키기 위한 Persistant Level 시스템.       

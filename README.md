@@ -21,12 +21,12 @@
 https://youtu.be/Np2qcAdtUEQ      
 
 ## 🎯 담당 업무
-1. **VisionSystem (시야 시스템)** - 실시간 시야 추적 및 가시성 관리
-2. **Convert & Module System (개조 및 모듈 시스템)** - 캐릭터 스테이터스 및 무기 강화 시스템      
-3. **ShopSystem (상점 시스템)** - 아이템 구매 및 판매 시스템     
-4. **InventorySystem (인벤토리 시스템)** - 아이템 보유 및 사용    
-5. **Google Sheets 데이터 연동** - 외부 데이터 파이프라인 구축     
-6. **그 외 기술**
+1. [**VisionSystem (시야 시스템)**](#1-post-processing과-custom-material을-이용한-제한된-시야-시스템) - 실시간 시야 추적 및 가시성 관리
+2. [**Convert & Module System (개조 및 모듈 시스템)**](#2-custom-mmc와-gameplayeffect를-이용한-개조-및-모듈-시스템) - 캐릭터 스테이터스 및 무기 강화 시스템
+3. [**ShopSystem (상점 시스템)**](#3-서버가-중앙-관리하는-상점-시스템) - 아이템 구매 및 판매 시스템
+4. [**InventorySystem (인벤토리 시스템)**](#4-네트워크-자동-동기화-되는-인벤토리-시스템) - 아이템 보유 및 사용
+5. [**Google Sheets 데이터 연동**](#5-기획자-친화적인-google-sheets-데이터-연동-시스템) - 외부 데이터 파이프라인 구축
+6. [**그 외 기술**](#7-그-외-기술)
 
 ## 💡 핵심 구현 내용
 ### 1. Post Processing과 Custom Material을 이용한 제한된 시야 시스템                   

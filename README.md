@@ -184,79 +184,55 @@ float UOZDamageMMC::CalculateBaseMagnitude_Implementation(const FGameplayEffectS
 
 
 #### 개요
-실시간 멀티플레이어 환경에서 안전한 아이템 거래를 보장하는 서버 권한 기반의 상점 시스템입니다.     
+실시간 멀티플레이어 환경에서 클라이언트 측 변조를 방지하는 서버 권한 기반의 상점 시스템입니다.      
+모든 거래 로직이 서버에서만 실행되며, 클라이언트는 구매 요청만 전송할 수 있고 재화·인벤토리의 실제 변경 권한을 갖지 않습니다.     
 
 #### 기술적 특징
-- **서버 권한 구조** : `Server RPC`를 통한 모든 거래 로직을 서버에서 처리하게 하여 멀티플레이 동기화를 보장하였고 클라이언트 해킹을 방지했습니다.
-- **검증-실행 분리** : 재화 -> 수량 상한 -> 인벤토리 슬롯 가용성 -> 배틀아이템 소유 제한 -> AddItem 결과 검증으로 총 5단계로 검증하여 인벤토리에 성공적으로 추가됐을 때 재화를 차감하는 구조입니다.      
-- **인벤토리 분리** : ShopManager는 InventoryComponent의 `AddItem`/`RemoveItem` 만 호출하며, 슬롯을 직접 조작하지 않습니다.      
+- **Server RPC** 기반 거래 처리 : 모든 구매·판매 함수를 UFUNCTION(Server, Reliable)로 선언하여 클라이언트가 직접 재화나 인벤토리를 조작할 수 없도록 했습니다. 클라이언트 UI는 PlayerController에게 요청만 전달하고, PlayerController가 HasAuthority() 검증 후 서버의 ShopManager로 전송합니다.     
+- 서버 측 PlayerState 참조 : 서버가 GetPlayerState<AOZPlayerState>()로 요청자를 직접 조회함으로써 타 플레이어를 사칭한 구매 요청을 차단합니다.      
+- DataTable 기반 서버 가격 결정 : 클라이언트가 가격을 임의로 변조해 전송하더라도, 서버는 자체 DataTable의 아이템 가격으로 재계산하므로 가격 위조가 불가능합니다.
+- Replicated 재화·인벤토리 : 재화와 인벤토리 슬롯이 모두 Replicated 속성이므로 클라이언트 측 값은 서버로부터 복제되어 덮어쓰이기 때문에,클라이언트 값을 변조해도 다음 복제 시점에 서버 값으로 원복됩니다.         
   
 <details>
 <summary><b>🔍 코드</b></summary>
 
 ```C++
-bool AOZShopManager::CanPurchaseItem(AOZPlayerState* BuyerPS, int32 ItemID, EOZItemType ItemType) const
+// 1단계: PlayerController — 클라이언트 요청의 진입점
+void AOZPlayerController::Server_PurchaseItem_Implementation(
+    int32 ItemID, EOZItemType ItemType, int32 Quantity)
 {
-    if (!BuyerPS) return false;
+    if (!HasAuthority()) return;  // 서버 권한 검증
 
-    int32 Price = GetItemPrice(ItemID, ItemType);
-    if (Price <= 0) return false;
+    AOZInGameGameState* GS = GetWorld()->GetGameState<AOZInGameGameState>();
+    AOZShopManager* ShopManager = GS->GetShopManager();
+    AOZPlayerState* OZPlayerState = GetPlayerState<AOZPlayerState>();  // 서버가 직접 조회
 
-    // 1단계: 재화 검증
-    if (BuyerPS->OwningScraps < Price) return false;
-
-    UOZInventoryComponent* InvComp = BuyerPS->InventoryComp;
-    if (!InvComp) return false;
-
-    // 2단계: 수량 상한 검증
-    int32 MaxStack = GetItemMaxStack(ItemID, ItemType);
-    int32 CurrentQuantity = InvComp->GetTotalItemQuantity(ItemID, ItemType);
-    if (CurrentQuantity >= MaxStack) return false;
-
-    // 3단계: 슬롯 가용성 검증
-    if (CurrentQuantity == 0 && !InvComp->HasEmptySlot()) return false;
-
-    // 4단계: 배틀아이템 3종류 제한
-    if (CurrentQuantity == 0 && ItemType == EOZItemType::Battle)
-    {
-        if (InvComp->GetUniqueBattleItemCount() >= 3) return false;
-    }
-
-    return true;
+    ShopManager->Server_PurchaseItem(OZPlayerState, ItemID, ItemType, Quantity);
 }
 
+// 2단계: ShopManager — 서버에서만 실행되는 거래 로직
 void AOZShopManager::Server_PurchaseItem_Implementation(
     AOZPlayerState* BuyerPS, int32 ItemID, EOZItemType ItemType, int32 Quantity)
 {
-    if (!BuyerPS || Quantity <= 0) return;
-
-    UOZInventoryComponent* InvComp = BuyerPS->InventoryComp;
-    if (!InvComp) return;
-
-    int32 Price = GetItemPrice(ItemID, ItemType);
-    if (Price <= 0) return;
-
+    UOZInventoryComponent* InvComp = BuyerPS->GetInventoryComponent();
+    int32 Price = GetItemPrice(ItemID, ItemType);    // DataTable에서 조회
     int32 MaxStack = GetItemMaxStack(ItemID, ItemType);
-    int32 CurrentQuantity = InvComp->GetTotalItemQuantity(ItemID, ItemType);
-    int32 MaxPurchasable = MaxStack - CurrentQuantity;
 
-    int32 ActualQuantity = FMath::Min(Quantity, MaxPurchasable);
-    if (ActualQuantity <= 0) return;
+    int32 CurrentQuantity = InvComp->GetItemQuantity(ItemID, ItemType);
+    int32 MaxPurchasable = MaxStack - CurrentQuantity;
+    int32 ActualQuantity = FMath::Min(Quantity, MaxPurchasable);  // 수량 클램핑
 
     int32 TotalPrice = Price * ActualQuantity;
-    if (BuyerPS->OwningScraps < TotalPrice) return;
+    if (BuyerPS->OwningScraps < TotalPrice) return;  // 재화 부족
 
-    if (CurrentQuantity == 0 && !InvComp->HasEmptySlot()) return;
+    if (CurrentQuantity == 0 && !InvComp->HasEmptySlot()) return;  // 슬롯 검증
 
-    // 5단계: AddItem 성공 후에만 재화 차감
-    bool bAddSuccess = InvComp->AddItem(ItemID, ItemType, ActualQuantity);
-    if (!bAddSuccess) return;
+    if (!InvComp->AddItem(ItemID, ItemType, ActualQuantity)) return;  // 추가 실패 시 중단
 
-    BuyerPS->OwningScraps -= TotalPrice;
-
-    OnShopUpdated.Broadcast();
-    OnScrapChanged.Broadcast(-1 * TotalPrice);
+    BuyerPS->OwningScraps -= TotalPrice;  // 성공 후에만 차감
+    OnScrapChanged.Broadcast(-TotalPrice);
 }
+
 ```
 </details>
 

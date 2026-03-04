@@ -30,27 +30,197 @@ https://youtu.be/Np2qcAdtUEQ
 
 ## 💡 핵심 구현 내용
 ### 1. Post Processing과 Custom Material을 이용한 제한된 시야 시스템                   
-#### 개요    
-플레이어의 가시 범위 내에 있는 오브젝트를 실시간으로 탐지하고, 이를 미니맵 및 월드 UI에 동적으로 반영하는 시스템입니다. 원뿔형 시야 알고리즘과 레이캐스팅을 결합하여 정밀한 Line of Sight(LOS)를 구현했습니다.           
-![bandicam 2026-02-12 10-13-45-501](https://github.com/user-attachments/assets/c24eda4e-cc58-41e1-8ab2-6a89d834fe8e)                  
-<img width="1197" height="179" alt="image" src="https://github.com/user-attachments/assets/95efa3ba-33e6-44f2-ab25-6157026ed020" />             
+### ✔ 개요    
+플레이어의 가시 범위 내에 있는 오브젝트를 실시간으로 탐지하고, 이를 미니맵 및 월드 UI에 동적으로 반영하는 시스템입니다.   
+
+![bandicam 2026-02-12 10-13-45-501](https://github.com/user-attachments/assets/c24eda4e-cc58-41e1-8ab2-6a89d834fe8e)                          
 
 
-#### 기술 경험         
-1. 라인트레이스를 이용한 원뿔 시야 계산
-초기에는 SetActorHiddenInGame을 사용하는 방식으로 접근하여 구현했으나, 캐릭터가 갑자기 보이는 현상이 매끄럽지 않아 유저들의 불쾌함을 느낄 것이라 판단해 자연스러운 느낌을 내기위해 채택했습니다.     
+### 💻 기술 경험         
+### **라인트레이스**를 이용한 원뿔 시야 계산
+- 초기 구현에서는 SetActorHiddenInGame을 통한 즉시 가시성 전환 방식을 사용했으나, 시각적 이질감이 들어 이를 개선하기 위해 LineTrace 기반 동적 가시성 시스템으로 전환하여 부드러운 시야 표현을 구현했습니다.
+- 시야 계산 로직을 유틸리티 클래스 분리하여, 플레이어 외 다른 액터에서도 시야 시스템을 재사용할 수 있도록 **확장성을 고려한 설계**를 적용했습니다.    
+       
+<details>
+<summary><b>🔍LineTrace 코드</b></summary>
+     
+```C++
+TArray<FVector> FOZVisionUtility::CreateVisionCone(
+	UWorld* World,
+	const FVector& Origin,
+	const FVector& ForwardVector,
+	float Range,
+	int32 NumTraces,
+	float DegreePerTrace,
+	AActor* IgnoreActor,
+	TSet<AActor*>* OutDetectedMinimapVisibleObjects,
+	TSet<AOZPlayer*>* OutDetectedPlayers)
+{
+	TArray<FVector> TraceResults;
 
-2. TSet을 이용한 오브젝트 판단
-매 프레임 다중 레이캐스팅을 통해 장애물에 가려진 오브젝트를 정확히 판별합니다.
-단, 성능저하를 우려해 **TSet 자료구조와 캐싱 배열**을 이용하여 중복 검사를 줄이며 성능을 최적화했습니다.         
+	if (!World)
+		return TraceResults;
 
-3. 머터리얼 함수를 이용한 머터리얼 인스턴싱
-<img width="1838" height="730" alt="image" src="https://github.com/user-attachments/assets/27487ec2-91c8-4249-97f2-d3c73aeb7275" />
-<img width="447" height="609" alt="image" src="https://github.com/user-attachments/assets/c9639aa1-55ff-4c81-9365-9a86c6aed189" />
-런타임에서 머티리얼 파라미터를 실시간으로 업데이트하여 시각적인 시야 범위를 표현합니다. 
-   
+	TraceResults.Empty();
 
-4. 포스트 프로세싱                  
+	if (OutDetectedPlayers)
+	{
+		OutDetectedPlayers->Empty();
+	}
+
+	float StartAngle = -(NumTraces * DegreePerTrace) / 2.0f;
+
+	for (int32 i = 0; i < NumTraces; i++)
+	{
+		float CurrentAngle = StartAngle + (DegreePerTrace * i);
+		FRotator Rotation = FRotator(0.0f, CurrentAngle, 0.0f);
+		FVector RotatedDirection = Rotation.RotateVector(ForwardVector);
+		FVector Start = Origin;
+		FVector End = Origin + (RotatedDirection * Range);
+
+		TArray<FHitResult> HitResults;
+		FCollisionQueryParams QueryParams;
+		QueryParams.bTraceComplex = false;
+
+		if (IgnoreActor)
+		{
+			QueryParams.AddIgnoredActor(IgnoreActor);
+		}
+
+		FCollisionObjectQueryParams ObjectParams;
+		ObjectParams.AddObjectTypesToQuery(ECC_WorldStatic);
+		ObjectParams.AddObjectTypesToQuery(ECC_Pawn);
+
+		bool bHit = World->LineTraceMultiByObjectType(
+			HitResults,
+			Start,
+			End,
+			ObjectParams,
+			QueryParams
+		);
+
+		FVector TraceEndPoint = End + (RotatedDirection * 10.0f);
+		bool bFoundWorldStatic = false;
+
+		if (bHit && HitResults.Num() > 0)
+		{
+			for (const FHitResult& Hit : HitResults)
+			{
+				if (Hit.Component.IsValid() &&
+					Hit.Component->GetCollisionObjectType() == ECC_WorldStatic)
+				{
+					TraceEndPoint = Hit.Location + (RotatedDirection * 10.0f);
+					bFoundWorldStatic = true;
+					break;
+				}
+			}
+
+			if (OutDetectedMinimapVisibleObjects)
+			{
+				for (const FHitResult& Hit : HitResults)
+				{
+					AActor* hittedActor = Hit.GetActor();
+					if (hittedActor && hittedActor->GetClass()->ImplementsInterface(UOZIMinimapVisibleActor::StaticClass()))
+					{
+						if (!bFoundWorldStatic || Hit.Distance < (TraceEndPoint - Start).Size())
+						{
+							OutDetectedMinimapVisibleObjects->Add(hittedActor);
+						}
+					}
+				}
+			}
+
+			if (OutDetectedPlayers)
+			{
+				for (const FHitResult& Hit : HitResults)
+				{
+					if (AOZPlayer* Player = Cast<AOZPlayer>(Hit.GetActor()))
+					{
+						if (!bFoundWorldStatic || Hit.Distance < (TraceEndPoint - Start).Size())
+						{
+							OutDetectedPlayers->Add(Player);
+						}
+					}
+				}
+			}
+		}
+		TraceResults.Add(TraceEndPoint);
+	}
+	return TraceResults;
+}
+```
+</details>      
+<details>
+<summary><b>🔍원뿔생성 코드</b></summary>
+     
+```C++
+TArray<FCanvasUVTri> FOZVisionUtility::PrepareTriangles(
+	const TArray<FVector>& TraceResults,
+	const FVector& CenterLocation,
+	float TraceRange)
+{
+	TArray<FCanvasUVTri> CanvasTriangles;
+	CanvasTriangles.Empty();
+
+	if (TraceResults.Num() < 2)
+		return CanvasTriangles;
+
+	FVector RenderTargetCenter = FVector(900.0, 900.0, 0.0);
+	float Scale = 900.f / TraceRange;
+
+	for (int32 i = 0; i < TraceResults.Num() - 1; ++i)
+	{
+		FVector Point0 = TraceResults[i];
+		FVector RelativePoint0 = Point0 - CenterLocation;
+		FVector ScaledPoint0 = RelativePoint0 * Scale;
+		FVector FinalPoint0 = ScaledPoint0 + RenderTargetCenter;
+		FVector2D V0_Pos = FVector2D(FinalPoint0.X, FinalPoint0.Y);
+
+		FVector Point1 = TraceResults[i + 1];
+		FVector RelativePoint1 = Point1 - CenterLocation;
+		FVector ScaledPoint1 = RelativePoint1 * Scale;
+		FVector FinalPoint1 = ScaledPoint1 + RenderTargetCenter;
+		FVector2D V1_Pos = FVector2D(FinalPoint1.X, FinalPoint1.Y);
+
+		FVector2D V2_Pos = FVector2D(RenderTargetCenter.X, RenderTargetCenter.Y);
+
+		FCanvasUVTri Triangle;
+
+		Triangle.V0_Pos = V0_Pos;
+		Triangle.V0_UV = FVector2D(0.0f, 0.0f);
+		Triangle.V0_Color = FLinearColor(1.0f, 1.0f, 1.0f, 0.0f);
+
+		Triangle.V1_Pos = V1_Pos;
+		Triangle.V1_UV = FVector2D(0.0f, 0.0f);
+		Triangle.V1_Color = FLinearColor(1.0f, 1.0f, 1.0f, 0.0f);
+
+		Triangle.V2_Pos = V2_Pos;
+		Triangle.V2_UV = FVector2D(0.0f, 0.0f);
+		Triangle.V2_Color = FLinearColor(1.0f, 1.0f, 1.0f, 0.0f);
+
+		CanvasTriangles.Add(Triangle);
+	}
+	return CanvasTriangles;
+}
+```
+</details>
+
+### **머터리얼 함수**와 **렌더타겟**를 이용한 원뿔 렌더링
+<img width="1879" height="845" alt="image" src="https://github.com/user-attachments/assets/35d6504a-16b6-4c01-bfaa-8b572f787f1a" />       
+
+- 동적 시야 렌더링을 위해 **머터리얼 함수**를 제작하였습니다.      
+- **머터리얼 파라미터**와 **머터리얼 콜렉션**을 이용해 플레이어의 위치와 시야거리 등을 반영한 **렌더타겟**을 그립니다. 
+<img width="503" height="578" alt="image" src="https://github.com/user-attachments/assets/c48e9ccb-995b-4908-a503-10e150931f3b" />
+
+- 해당 머터리얼 함수를 적용하면 어느 머터리얼이든 시야각에 의한 결과 적용~~~
+
+             
+
+
+> 결과물
+<img width="1063" height="517" alt="image" src="https://github.com/user-attachments/assets/4db6223b-7787-4c5e-bdf9-11aa9d9a778b" />             
+
+### **포스트 프로세싱**                  
 ![bandicam 2026-02-12 12-08-56-396](https://github.com/user-attachments/assets/67bab719-1c0e-48b9-9b4d-952a8fe0018b)      
 > 연막탄 내 적군은 보이지 않습니다.
      
@@ -59,8 +229,17 @@ https://youtu.be/Np2qcAdtUEQ
 
 ![bandicam 2026-02-12 12-19-37-339](https://github.com/user-attachments/assets/53403a85-d421-4dd0-84a4-3161434ae99b)    
 > 타워 활성화 시, 특정 지역들의 시야를 확인 가능해 미니맵에도 보여집니다.         
-#### 최적화
-     
+### 에셋 캐싱을 통한 최적화
+> Before
+<img width="645" height="125" alt="KakaoTalk_20260120_114140293" src="https://github.com/user-attachments/assets/f292b53b-4721-428a-9e79-88be6d142c36" />     
+
+> After
+<img width="649" height="78" alt="KakaoTalk_20260120_124115111" src="https://github.com/user-attachments/assets/17a77a71-fead-49ba-a221-f3d7e7115c8d" />         
+
+- 언리얼 인사이트 프로파일링을 통해 TickComponent 내 **GetAllActorsOfClass**함수가 매 프레임마다 호출되며 CPU 병목의 주원인임을 확인했습니다.
+- 액터 배열을 멤버 변수에 캐싱하고, 0.5초 간격의 타이머로 갱신 주기를 분리해 매 프레임 재탐색을 제거했습니다.
+- 그 결과, VisionComponent의 호출 횟수가 6,300회에서 2,607회로 약 59% 감소했으며, 총 실행 시간도 571ms에서 324ms로 단축되어 시야 시스템 전반의 CPU 부하를 획기적으로 낮췄습니다.
+
 
 <details>
 <summary><b>🔍 VisionComponent 코드</b></summary>

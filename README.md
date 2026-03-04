@@ -212,15 +212,18 @@ TArray<FCanvasUVTri> FOZVisionUtility::PrepareTriangles(
 - **머터리얼 파라미터**와 **머터리얼 콜렉션**을 이용해 플레이어의 위치와 시야거리 등을 반영한 **렌더타겟**을 그립니다. 
 <img width="503" height="578" alt="image" src="https://github.com/user-attachments/assets/c48e9ccb-995b-4908-a503-10e150931f3b" />
 
-- 해당 머터리얼 함수를 적용하면 어느 머터리얼이든 시야각에 의한 결과 적용~~~
-
-             
-
+- 해당 머터리얼 함수를 적용하면 어느 머터리얼이든 시야각에 의한 결과 적용받게 설계했습니다.
 
 > 결과물
 <img width="1063" height="517" alt="image" src="https://github.com/user-attachments/assets/4db6223b-7787-4c5e-bdf9-11aa9d9a778b" />             
 
-### **포스트 프로세싱**                  
+### **포스트 프로세싱**        
+> 포스트 프로세스 볼륨에 적용되는 머터리얼
+<img width="1284" height="420" alt="image" src="https://github.com/user-attachments/assets/d11b0715-87d8-489f-9ffa-71cc913cda7a" />
+
+- 포스트 프로세스 볼륨과 머터리얼을 연동하여 시야 영역은 원본 색상을 유지하고, 비가시 영역은 채도를 20% 낮추어 **직관적인 시야 피드백**을 제공했습니다.     
+- 다음은 시야 시스템과 포스트 프로세싱을 통해 인게임에 구현된 사례입니다.     
+           
 ![bandicam 2026-02-12 12-08-56-396](https://github.com/user-attachments/assets/67bab719-1c0e-48b9-9b4d-952a8fe0018b)      
 > 연막탄 내 적군은 보이지 않습니다.
      

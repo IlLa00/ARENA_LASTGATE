@@ -17,7 +17,7 @@
 - **문서화**: Notion 
 - **버전 관리**: SVN
 
-### 데모 영상
+### 플레이 영상 링크
 https://youtu.be/Np2qcAdtUEQ      
 
 ## 🎯 담당 업무
@@ -30,19 +30,27 @@ https://youtu.be/Np2qcAdtUEQ
 
 ## 💡 핵심 구현 내용
 ### 1. Post Processing과 Custom Material을 이용한 제한된 시야 시스템                   
-![bandicam 2026-02-12 10-13-45-501](https://github.com/user-attachments/assets/c24eda4e-cc58-41e1-8ab2-6a89d834fe8e)
-
 #### 개요    
-플레이어의 가시 범위 내에 있는 오브젝트를 실시간으로 탐지하고, 이를 미니맵 및 월드 UI에 동적으로 반영하는 시스템입니다. 원뿔형 시야 알고리즘과 레이캐스팅을 결합하여 정밀한 Line of Sight(LOS)를 구현했습니다.    
+플레이어의 가시 범위 내에 있는 오브젝트를 실시간으로 탐지하고, 이를 미니맵 및 월드 UI에 동적으로 반영하는 시스템입니다. 원뿔형 시야 알고리즘과 레이캐스팅을 결합하여 정밀한 Line of Sight(LOS)를 구현했습니다.           
+![bandicam 2026-02-12 10-13-45-501](https://github.com/user-attachments/assets/c24eda4e-cc58-41e1-8ab2-6a89d834fe8e)                  
+<img width="1197" height="179" alt="image" src="https://github.com/user-attachments/assets/95efa3ba-33e6-44f2-ab25-6157026ed020" />             
 
-#### 기술적 특징    
-CPU 레이캐스팅 + GPU RenderTarget 혼합 방식으로, 다양한 가시성 조건(연막/부쉬/타워)을 처리합니다.      
-- **Cone-based Vision Algorithm** : 플레이어의 정면을 기준으로 원뿔 형태의 시야 범위를 계산합니다.
-- **Real-time LOS Tracing** : 매 프레임 다중 레이캐스팅을 통해 장애물에 가려진 오브젝트를 정확히 판별합니다.
-단, 성능저하를 우려해 **TSet 자료구조와 캐싱 배열**을 이용하여 중복 검사를 줄이며 성능을 최적화했습니다.   
-- **Dynamic Material Rendering** : 런타임에서 머티리얼 파라미터를 실시간으로 업데이트하여 시각적인 시야 범위를 표현합니다.
-- **PostProcess Integration** : 시야 상태에 따른 화면 효과(PostProcessVolume)를 연동하여 몰입감을 높였습니다.
 
+#### 기술 경험         
+1. 라인트레이스를 이용한 원뿔 시야 계산
+초기에는 SetActorHiddenInGame을 사용하는 방식으로 접근하여 구현했으나, 캐릭터가 갑자기 보이는 현상이 매끄럽지 않아 유저들의 불쾌함을 느낄 것이라 판단해 자연스러운 느낌을 내기위해 채택했습니다.     
+
+2. TSet을 이용한 오브젝트 판단
+매 프레임 다중 레이캐스팅을 통해 장애물에 가려진 오브젝트를 정확히 판별합니다.
+단, 성능저하를 우려해 **TSet 자료구조와 캐싱 배열**을 이용하여 중복 검사를 줄이며 성능을 최적화했습니다.         
+
+3. 머터리얼 함수를 이용한 머터리얼 인스턴싱
+<img width="1838" height="730" alt="image" src="https://github.com/user-attachments/assets/27487ec2-91c8-4249-97f2-d3c73aeb7275" />
+<img width="447" height="609" alt="image" src="https://github.com/user-attachments/assets/c9639aa1-55ff-4c81-9365-9a86c6aed189" />
+런타임에서 머티리얼 파라미터를 실시간으로 업데이트하여 시각적인 시야 범위를 표현합니다. 
+   
+
+4. 포스트 프로세싱                  
 ![bandicam 2026-02-12 12-08-56-396](https://github.com/user-attachments/assets/67bab719-1c0e-48b9-9b4d-952a8fe0018b)      
 > 연막탄 내 적군은 보이지 않습니다.
      
@@ -50,10 +58,12 @@ CPU 레이캐스팅 + GPU RenderTarget 혼합 방식으로, 다양한 가시성 
 > 섬광탄 피격 받을 시, 시야가 차단됩니다.
 
 ![bandicam 2026-02-12 12-19-37-339](https://github.com/user-attachments/assets/53403a85-d421-4dd0-84a4-3161434ae99b)    
-> 타워 활성화 시, 특정 지역들의 시야를 확인 가능해 미니맵에도 보여집니다.
+> 타워 활성화 시, 특정 지역들의 시야를 확인 가능해 미니맵에도 보여집니다.         
+#### 최적화
+     
 
 <details>
-<summary><b>🔍 코드</b></summary>
+<summary><b>🔍 VisionComponent 코드</b></summary>
      
 ```C++
 void UOZVisionComponent::LosVisionSystem()
@@ -125,7 +135,7 @@ void UOZVisionComponent::LosVisionSystem()
 ![bandicam 2026-02-12 11-27-35-314](https://github.com/user-attachments/assets/c8b0bb33-8b5f-4ff4-96e4-a4137e987f88)
 
 #### 개요     
-**개조**는 플레이어의 무기에 추가적인 능력치나 특수 효과를 부여하는 시스템입니다. **GAS(Gameplay Ability System)**의 GameplayEffect를 기반으로 설계되어 안정적인 스탯 변조를 지원하며, Data-Driven(데이터 주도) 설계를 통해 수십 가지의 무기 속성을 유연하게 제어합니다.     
+**개조**는 플레이어의 무기에 추가적인 능력치나 특수 효과를 부여하는 시스템입니다. GAS(Gameplay Ability System)의 GameplayEffect를 기반으로 설계되어 안정적인 스탯 변조를 지원하며, Data-Driven(데이터 주도) 설계를 통해 수십 가지의 무기 속성을 유연하게 제어합니다.     
 **모듈**은 캐릭터의 영구적인 스탯(체력, 속도, 방어력 등)을 강화하는 시스템입니다. 데이터 테이블 기반이라 런타임에 값이 결정되므로 SetByCaller를 통해 서로 다른 수치를 동적으로 주입하는 효율적인 구조를 취합니다.    
 
 #### 기술적 특징    

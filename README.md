@@ -541,3 +541,76 @@ bool UOZInventoryComponent::AddItem(int32 ItemID, EOZItemType ItemType, int32 Am
 }
 ```
 </details>
+
+
+## 3. MVVM 패턴을 활용한 UI 리팩토링
+
+### Model을 직접 조회하고 View가 바로 표시할 수 있는 DisplayData로 가공
+
+<details>
+<summary><b>UOZFloorViewModel::TransformInventorySlots()</b></summary>
+
+```cpp
+TArray<FOZInventorySlotDisplayData> UOZFloorViewModel::TransformInventorySlots() const
+{
+    TArray<FOZInventorySlotDisplayData> Result;
+    if (!InventoryComp || !ItemSubsystem)
+        return Result;
+
+    const TArray<FOZInventorySlot>& Slots = InventoryComp->GetAllSlots();
+    for (int32 i = 0; i < Slots.Num(); i++)
+    {
+        FOZInventorySlotDisplayData DisplayData;
+        DisplayData.SlotIndex = i;
+        if (!Slots[i].IsEmpty())
+        {
+            const FOZInventorySlot& InvenSlot = Slots[i];
+            DisplayData.ItemID = InvenSlot.ItemID;
+            DisplayData.ItemType = InvenSlot.ItemType;
+            DisplayData.Quantity = InvenSlot.Quantity;
+
+            if (InvenSlot.ItemType == EOZItemType::Battle)
+            {
+                FOZBattleItemData* ItemData = ItemSubsystem->GetBattleItemData(InvenSlot.ItemID);
+                if (ItemData)
+                {
+                    DisplayData.ItemName = ItemData->Item_Name;
+                    DisplayData.Icon = ItemData->ItemIcon.LoadSynchronous();
+                }
+            }
+            ...
+        }
+        Result.Add(DisplayData);
+    }
+    return Result;
+}
+```
+</details>
+
+### Model을 전혀 모르고, 받은 DisplayData를 위젯에 세팅만 함
+
+<details>
+<summary><b>UOZInGameFloorUI::OnInventoryDisplayUpdated</b></summary>
+
+```cpp
+void UOZInGameFloorUI::OnInventoryDisplayUpdated(const TArray<FOZInventorySlotDisplayData>& SlotData)
+{
+    TArray<UOZInvenEntry*> InvenEntries = { WBP_InvenEntry_1, WBP_InvenEntry_2, WBP_InvenEntry_3, WBP_InvenEntry_4 };
+    for (int32 i = 0; i < InvenEntries.Num(); i++)
+    {
+        UOZInvenEntry* Entry = InvenEntries[i];
+        if (!Entry)
+			continue;
+
+        if (i < SlotData.Num() && !SlotData[i].IsEmpty())
+        {
+            const FOZInventorySlotDisplayData& Data = SlotData[i];
+            Entry->SetupEntry(Data.ItemName, Data.Icon, Data.Quantity,Data.SlotIndex, Data.ItemID, Data.ItemType);
+        }
+        else
+            Entry->ClearEntry();
+    }
+}
+```
+</details>
+

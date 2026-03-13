@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "UserInterface/OZLoadingScreen.h"
+#include "Data/OZLoadingScreenData.h"
 #include "OZLoadingSubsystem.generated.h"
 
 /**
@@ -56,4 +57,7 @@ private:
 	void HandleLoadingTimeout();
 
 	void HandleJoinSessionFail();
+
+	UPROPERTY(EditDefaultsOnly)
+	UOZLoadingScreenData* LoadingScreenData = nullptr;
 };

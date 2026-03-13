@@ -3,6 +3,8 @@
 
 #include "Subsystem/OZLoadingSubsystem.h"
 #include "Instance/OZGameInstance.h"
+#include "UserInterface/SLoadingScreen.h"
+#include "MoviePlayer.h"
 #include "Engine/Engine.h"
 
 void UOZLoadingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -23,66 +25,127 @@ UOZLoadingSubsystem::UOZLoadingSubsystem()
 	{
 		LoadingWidgetClass = LoadingSceneClass.Class;
 	}
+
+	static ConstructorHelpers::FObjectFinder<UOZLoadingScreenData>DataAsset(TEXT("/Game/Data/DA_LoadingScreen.DA_LoadingScreen"));
+
+	if (DataAsset.Object != nullptr)
+	{
+		LoadingScreenData = DataAsset.Object;
+	}
+
 }
 
 void UOZLoadingSubsystem::PlayLoadingScene()
 {
-	if (ActivatedLoadingWidget == nullptr)
+	//무비버젼
 	{
-		ActivatedLoadingWidget = CreateWidget<UOZLoadingScreen>(GetGameInstance(), LoadingWidgetClass);
+		//if (!ActivatedSlateWidget.IsValid())
+		//{
+		//	ActivatedSlateWidget =
+		//		SNew(SLoadingScreen)
+		//		.BackGroundTextures(LoadingScreenData->BackGroundTextures)
+		//		.HintTextures(LoadingScreenData->HintTexts)
+		//		.LogoTexture(LoadingScreenData->LogoTexture)
+		//		.TrobberTexture(LoadingScreenData->TrobberTexture)
+		//		.CoreTexture(LoadingScreenData->CoreTexture);
+		//}
+
+		////Add to viewprot 버젼, 어젼히 멈춤
+		///*if (GEngine && GEngine->GameViewport)
+		//{
+		//	GEngine->GameViewport->AddViewportWidgetContent(ActivatedSlateWidget.ToSharedRef(), 999);
+		//}*/
+
+		////무비 플레이만이 유일한 해결책
+		//FLoadingScreenAttributes LoadingAttributes;
+		//LoadingAttributes.WidgetLoadingScreen = ActivatedSlateWidget;
+		//LoadingAttributes.bAutoCompleteWhenLoadingCompletes = false;
+		//LoadingAttributes.bWaitForManualStop = true;
+		//LoadingAttributes.MinimumLoadingScreenDisplayTime = 0.f;
+
+		//GetMoviePlayer()->SetupLoadingScreen(LoadingAttributes);
 	}
 
-	if (ActivatedLoadingWidget && GEngine && GEngine->GameViewport)
+	//기존버젼
 	{
-
-		if (!ActivatedSlateWidget.IsValid())
+		if (ActivatedLoadingWidget == nullptr)
 		{
-			ActivatedSlateWidget = ActivatedLoadingWidget->TakeWidget();
+			ActivatedLoadingWidget = CreateWidget<UOZLoadingScreen>(GetGameInstance(), LoadingWidgetClass);
 		}
 
-		GEngine->GameViewport->AddViewportWidgetContent(ActivatedSlateWidget.ToSharedRef(), 99);
+		if (ActivatedLoadingWidget && GEngine && GEngine->GameViewport)
+		{
+
+			if (!ActivatedSlateWidget.IsValid())
+			{
+				ActivatedSlateWidget = ActivatedLoadingWidget->TakeWidget();
+			}
+
+			GEngine->GameViewport->AddViewportWidgetContent(ActivatedSlateWidget.ToSharedRef(), 99);
+		}
+
+		//AddtoViewport�� ���忡 �����ִ� ���̶�, ���� ��ȯ�� ������
+		//ActivatedLoadingWidget->AddToViewport(999);
+
+		LoadingElapsedTime = 0.f;
+		bLoadingActive = true;
+
+		if (!TickHandle.IsValid())
+		{
+			TickHandle = FTSTicker::GetCoreTicker().AddTicker(
+				FTickerDelegate::CreateUObject(this, &UOZLoadingSubsystem::Tick)
+			);
+		}
+
+		Cast<UOZGameInstance>(GetGameInstance())->PrintLog(TEXT("PlayLoadingScene"), FColor::Green, 1.f);
 	}
 
-	//AddtoViewport�� ���忡 �����ִ� ���̶�, ���� ��ȯ�� ������
-	//ActivatedLoadingWidget->AddToViewport(999);
-
-	LoadingElapsedTime = 0.f;
-	bLoadingActive = true;
-
-	if (!TickHandle.IsValid())
-	{
-		TickHandle = FTSTicker::GetCoreTicker().AddTicker(
-			FTickerDelegate::CreateUObject(this, &UOZLoadingSubsystem::Tick)
-		);
-	}
-
-	Cast<UOZGameInstance>(GetGameInstance())->PrintLog(TEXT("PlayLoadingScene"), FColor::Green, 1.f);
 }
 
 void UOZLoadingSubsystem::EraseLoadingScene()
 {
-	// 먼저 로딩 상태 플래그 해제 (타임아웃 로직 정리)
-	bLoadingActive = false;
-
-	if (ActivatedLoadingWidget == nullptr)
-		return;
-
-	if (GEngine && GEngine->GameViewport && ActivatedSlateWidget.IsValid())
 	{
-		GEngine->GameViewport->RemoveViewportWidgetContent(ActivatedSlateWidget.ToSharedRef());
-		ActivatedSlateWidget.Reset();
+		// 먼저 로딩 상태 플래그 해제 (타임아웃 로직 정리)
+		bLoadingActive = false;
+
+		if (ActivatedLoadingWidget == nullptr)
+			return;
+
+		if (GEngine && GEngine->GameViewport && ActivatedSlateWidget.IsValid())
+		{
+			GEngine->GameViewport->RemoveViewportWidgetContent(ActivatedSlateWidget.ToSharedRef());
+			ActivatedSlateWidget.Reset();
+		}
+
+		if (TickHandle.IsValid())
+		{
+			FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
+			TickHandle.Reset();
+		}
+
+
+		ActivatedLoadingWidget = nullptr;
+
+		Cast<UOZGameInstance>(GetGameInstance())->PrintLog(TEXT("EraseLoadingScene"), FColor::Green, 1.f);
 	}
 
-	if (TickHandle.IsValid())
+
+	//MoviePlayer 버젼
 	{
-		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
-		TickHandle.Reset();
+		///*if (ActivatedSlateWidget.IsValid() && GEngine && GEngine->GameViewport)
+		//{
+		//	GEngine->GameViewport->RemoveViewportWidgetContent(
+		//		ActivatedSlateWidget.ToSharedRef()
+		//	);
+		//}*/
+
+		//if (GetMoviePlayer())
+		//{
+		//	GetMoviePlayer()->StopMovie();
+		//}
+
+		//ActivatedSlateWidget.Reset();
 	}
-
-
-	ActivatedLoadingWidget = nullptr;
-
-	Cast<UOZGameInstance>(GetGameInstance())->PrintLog(TEXT("EraseLoadingScene"), FColor::Green, 1.f);
 }
 
 void UOZLoadingSubsystem::OnClientTravelFailed(UWorld* World, ETravelFailure::Type FailureType, const FString& ErrorString)

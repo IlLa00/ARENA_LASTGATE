@@ -32,7 +32,10 @@ public class ARENA_LASTGATE : ModuleRules
             "AnimGraphRuntime",
 
             "LevelSequence",
-            "MovieScene"
+            "MovieScene",
+
+			//비동기 멀티씬
+			"MoviePlayer"
         });
 
 		// Editor 전용 모듈 (에디터에서만 사용)

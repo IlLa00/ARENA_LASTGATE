@@ -3,19 +3,17 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Utils/Util.h"
-#include "GameplayEffectTypes.h"
 #include "Data/OZConvertData.h"
-#include "ActiveGameplayEffectHandle.h"
 #include "OZInGameFloorUI.generated.h"
 
-class UAbilitySystemComponent;
-struct FOnAttributeChangeData;
-class UOZConvertSubsystem;
+class UOZFloorViewModel;
 class UOZBuffProgressEntry;
 class UVerticalBox;
 class UHorizontalBox;
 class UOverlay;
-struct FActiveGameplayEffect;
+struct FOZInventorySlotDisplayData;
+struct FOZConvertSlotDisplayData;
+struct FOZBuffDisplayData;
 
 UCLASS()
 class ARENA_LASTGATE_API UOZInGameFloorUI : public UUserWidget
@@ -60,7 +58,6 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<class UCanvasPanel> DeadPannel;
-
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<class UTextBlock> Text_Upper;
@@ -153,14 +150,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Buff UI")
 	TSubclassOf<UOZBuffProgressEntry> BuffProgressEntryClass;
 
-	//튜토피얼 팝업 위젯
-
 	void PlayPopup(FString text_Title, FString text_Msg, float lifeTime);
 
 	UPROPERTY(BlueprintReadWrite)
 	TObjectPtr<class UOZTutorialPopupTextWidget> TutorialPopupMsg = nullptr;
 
-	//컨테이너 위젯
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UHorizontalBox> HorizontalBox_TimeDisplaySlot;
 
@@ -176,63 +170,27 @@ public:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UOverlay> Overlay_InventorySlot;
 
-
-	
-
 private:
 	UPROPERTY()
-	class UOZInventoryComponent* InventoryComp = nullptr;
+	TObjectPtr<UOZFloorViewModel> ViewModel;
 
-	UPROPERTY()
-	class AOZPlayerState* PlayerState = nullptr;
+	void InitializeViewModel();
 
-	UPROPERTY()
-	UAbilitySystemComponent* ASC = nullptr;
+	void OnFloatPropertyUpdated(FName PropertyName, float NewValue);
+	void OnInventoryDisplayUpdated(const TArray<FOZInventorySlotDisplayData>& SlotData);
+	void OnConvertDisplayUpdated(const TArray<FOZConvertSlotDisplayData>& SlotData);
+	void OnNewBuffDisplayed(const FOZBuffDisplayData& BuffData);
+	void OnStealthStateUpdated(bool bInBush);
 
-	bool bPlayerStateInitialized = false;
-
-	void BindAttributeDelegates();
-	void UnbindAttributeDelegates();
-
-	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
-	void OnMaxStaminaChanged(const FOnAttributeChangeData& Data);
-	void OnMaxShieldChanged(const FOnAttributeChangeData& Data);
-	void OnArmorChanged(const FOnAttributeChangeData& Data);
-	void OnEvLDistanceChanged(const FOnAttributeChangeData& Data);
-	void OnMoveSpeedChanged(const FOnAttributeChangeData& Data);
-
-	void UpdateHealthUI(float MaxHP);
-	void UpdateStaminaUI(float MaxStamina);
-	void UpdateShieldUI(float MaxShield);
-	void UpdateArmorUI(float Armor);
-	void UpdateEvLDistanceUI(float EvLDistance);
-	void UpdateSpeedUI(float MoveSpeed);
-
-	void InitializeAttributeUI();
-
-	void UpdateStealthVisibility(bool bInBush);
-
-	UFUNCTION()
-	void OnConvertAcquired(int32 ConvertID, EConvertGrade Grade);
-
-	void UpdateConvertUI();
-	void SetConvertSlot(int32 SlotIndex, int32 ConvertID);
+	void UpdateAttributeText(FName PropertyName, float Value);
+	void SetConvertSlotVisual(int32 SlotIndex, EConvertGrade Grade, UTexture2D* IconTexture);
 	UTexture2D* GetBGTextureForGrade(EConvertGrade Grade) const;
-
-	UPROPERTY()
-	TObjectPtr<UOZConvertSubsystem> ConvertSubsystem;
 
 	TArray<TObjectPtr<class UImage>> ConvertBGSlots;
 	TArray<TObjectPtr<class UImage>> ConvertIconSlots;
 
-	bool bAttributeDelegatesBound = false;
-	bool bPreviousInBush = false;
-
 	UPROPERTY()
 	TArray<TObjectPtr<UOZBuffProgressEntry>> ActiveBuffEntries;
 
-	void UpdateBuffTimers();
 	void OnBuffEntryExpired(UOZBuffProgressEntry* ExpiredEntry);
-
-	int32 GetBuffItemIDFromTag(const FGameplayTag& BuffTag) const;
 };

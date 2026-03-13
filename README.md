@@ -543,7 +543,7 @@ bool UOZInventoryComponent::AddItem(int32 ItemID, EOZItemType ItemType, int32 Am
 </details>
 
 
-## 3. MVVM 패턴을 활용한 UI 리팩토링
+## 4. 그 외 기술 - MVVM 패턴을 활용한 UI 리팩토링
 
 ### Model을 직접 조회하고 View가 바로 표시할 수 있는 DisplayData로 가공
 
